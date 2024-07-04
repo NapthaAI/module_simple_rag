@@ -1,52 +1,62 @@
+import os
+from typing import Dict
 from simple_rag.schemas import InputSchema
 from naptha_sdk.utils import get_logger
-from typing import Dict
-from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
-from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
+import chromadb
+import chromadb.utils.embedding_functions as embedding_functions
+from litellm import completion
+from dotenv import load_dotenv
 
-
+load_dotenv()
 logger = get_logger(__name__)
 
 
 def get_retrieved_docs_str(retrieved_docs):
-    return '\n'.join([f'Doc {i}:\n{doc.page_content}\n\n' for i, doc in enumerate(retrieved_docs)])
+    docs = retrieved_docs['documents'][0]
+    return '\n'.join([f'Doc {i}:\n{doc}\n\n' for i, doc in enumerate(docs)])
 
 def run(inputs: InputSchema, worker_nodes = None, orchestrator_node = None, flow_run = None, cfg: Dict = None):
     logger.info(f"Running module with prompt: {inputs.question}")
 
-    chroma_db = Chroma(
-        embedding_function=OpenAIEmbeddings(),
-        persist_directory=inputs.input_dir,
-    )
+    client = chromadb.PersistentClient(path=inputs.input_dir)
+    collection = client.get_collection(name="default_collection")
+    openai_ef = embedding_functions.OpenAIEmbeddingFunction(api_key=os.getenv('OPENAI_API_KEY'))
 
-    retrieved_docs = chroma_db.similarity_search(inputs.question, k=4)
-    retrieved_docs_str = get_retrieved_docs_str(retrieved_docs)
+    query_embedding = openai_ef.embed_with_retries([inputs.question])[0]
+    sel_docs = collection.query(query_embedding, n_results=3)
+    retrieved_docs_str = get_retrieved_docs_str(sel_docs)
+
+    prompt = cfg["inputs"]["user_message_template"].format(question=inputs.question, document=retrieved_docs_str)
 
     messages = [
-        ("system", cfg["inputs"]["system_message"]),
-        ("user", cfg["inputs"]["user_message_template"]),
+        {
+            "role": "system",
+            "content": cfg["inputs"]["system_message"]
+        },
+        {
+            "role": "user",
+            "content": prompt
+        }
     ]
 
-    chat_template = ChatPromptTemplate.from_messages(messages, template_format="mustache")
-    chat_prompt = chat_template.invoke({
-        "question": inputs.question,
-        "document": retrieved_docs_str,
-    })
+    response = completion(
+        model=cfg["models"]["openai"]["model"],
+        messages=messages
+    )
 
-    llm = ChatOpenAI(model='gpt-3.5-turbo')
+    return response.choices[0].message.content
 
-    response = llm.invoke(chat_prompt.to_messages())
-
-    return response.content
 
 
 if __name__ == "__main__":
-    inputs = InputSchema.parse_obj({
-        "question": "What is the main concept discussed in the paper?",
-        "input_dir": "/Users/arshath/play/playground/node-tests/chroma_db",
-    })
+    import yaml
+    inputs = InputSchema(
+        question = "What is the main concept discussed in the paper?",
+        input_dir = "/Users/arshath/play/playground/node-tests/chroma_db",
+    )
     
-    res = run(inputs)
+    cfg_path = "simple_rag/component.yaml"
+    with open(cfg_path, "r") as file:
+        cfg = yaml.load(file, Loader=yaml.FullLoader)
+    res = run(inputs, cfg=cfg)
     print(res)

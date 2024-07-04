@@ -21,10 +21,10 @@ inputs:
   user_message_template: |
     Answer the question based on the content of the document.
     Here is the question: 
-    {{question}}
+    {question}
 
     Here is the document:
-    {{document}}
+    {document}
   save: false
   location: "ipfs"
 
