@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "simple_rag"
+version = "0.1.0"
+description = ""
+authors = ["Mohamed Arshath <marshath@gmail.com>"]
+readme = "README.md"
+packages = [
+    {include = "simple_rag", from="."}
+]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+black = "^23.12.1"
+langchain = "^0.2.6"
+langchain-core = "^0.2.11"
+langchain-openai = "^0.1.14"
+langchain-chroma = "^0.1.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
