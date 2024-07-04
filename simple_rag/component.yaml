@@ -1,0 +1,37 @@
+name: "simple_rag"
+author: "naptha"
+version: "0.1.0"
+description: "A tool implementing the simple RAG model using Langchain."
+license: "MIT"
+
+models:
+  default_model_provider: "openai"
+  ollama:
+    model: "ollama/gemma"
+    max_tokens: 1000
+    temperature: 0
+    api_base: "http://localhost:11434"
+  openai:
+    model: "openai/gpt-3.5-turbo"
+    max_tokens: 1000
+    temperature: 0
+
+inputs:
+  system_message: "You are an AI assistant. You answer questions based on the content of the document."
+  user_message_template: |
+    Answer the question based on the content of the document.
+    Here is the question: 
+    {{question}}
+
+    Here is the document:
+    {{document}}
+  save: false
+  location: "ipfs"
+
+outputs:
+  save: false
+  location: "node"
+
+implementation:
+  package:
+    entrypoint: "run.py"
