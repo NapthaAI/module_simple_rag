@@ -17,6 +17,7 @@ def get_retrieved_docs_str(retrieved_docs):
 
 def run(inputs: InputSchema, worker_nodes = None, orchestrator_node = None, flow_run = None, cfg: Dict = None):
     logger.info(f"Running module with prompt: {inputs.question}")
+    logger.info(f"Input directory: {inputs.input_dir}")
 
     client = chromadb.PersistentClient(path=inputs.input_dir)
     collection = client.get_collection(name="default_collection")
